@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Break The Bricks</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      outline: none;
+      background: #464;
+    }
+
+    canvas {
+      background: #c9c;
+      display: block;
+      margin: 0 auto;
+      padding: 20px auto;
+      border: 1px solid #8f63cc;
+      margin-top: 10px;
+    }
+
+    .title {
+      color: #00c;
+      background: #cfc;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 30px;
+      width: 480px;
+      margin: 0 auto;
+      margin-top: 20px;
+    }
+
+    button {
+      border: none;
+      background: #cfc;
+      width: 100px;
+      margin: 0 auto;
+      margin-top: 20px;
+      color: #00c;
+      text-align: center;
+      font-size: 24px;
+      cursor: pointer;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="title">撞球游戏</div>
+  <canvas id="canvas" width="480" height="460"></canvas>
+  <button class="start">开始游戏</button>
+  <button class="replay">重新开始</button>
+  <button class="pause">暂停</button>
+  <script>
+    var canvas = document.querySelector('#canvas');
+    var start = document.querySelector('.start');
+    var pause = document.querySelector('.pause');
+    var replay = document.querySelector('.replay');
+    var ctx = canvas.getContext('2d');
+    var lives = 3;
+    var scoreNum = 0;
+    var enemy;
+    var enemyPos = [];
+    var enemyRows = 5;
+    var enemyColumns = 6;
+    var enemyWidth = 70;
+    var enemyHeight = 20;
+    var enemyGap = 6;
+    var enemyStartPosX = 15;
+    var enemyStartPosY = 30;
+    var salverHeight = 15;
+    var salverWidth = 75;
+    var salverX = (canvas.width - salverWidth) / 2;
+    var salverY = canvas.height - salverHeight;
+    var ballRadius = 10;
+    var ballColor = '#f44280';
+    var ballPosX = canvas.width / 2;
+    var ballPosY = canvas.height - salverHeight - ballRadius;
+    var dx = 3;
+    var dy = -3;
+    var livesNum = 3;
+    var score;
+    var lives;
+    var salver;
+    var ball;
+    var result;
+    var leftPressed = false;
+    var rightPressed = false;
+    var isPlay = false;
+
+    class Element {
+      constructor(x, y, width, height) {
+        this.x = x,
+          this.y = y,
+          this.width = width,
+          this.height = height
+      }
+    }
+    class Enemy extends Element {
+      constructor(x, y, width, height) {
+        super(x, y, width, height)
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.fillStyle = '#8f63cc';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+    }
+    class Text extends Element {
+      constructor(x, y, font, color, text) {
+        super(x, y);
+        this.font = font;
+        this.color = color;
+        this.text = text;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.font = this.font;
+        ctx.fillStyle = this.color;
+        ctx.fillText(this.text, this.x, this.y)
+      }
+    }
+    class Salver extends Element {
+      constructor(x, y, width, height) {
+        super(x, y, width, height)
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.fillStyle = '#00f';
+        ctx.fillRect(this.x, this.y, this.width, this.height)
+      }
+    }
+    class Ball extends Element {
+      constructor(x, y) {
+        super(x, y)
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.fillStyle = ballColor;
+        ctx.arc(this.x, this.y, ballRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    function createEnemyPos() {
+      for (let i = 0; i < enemyColumns; i++) {
+        for (let j = 0; j < enemyRows; j++) {
+          var x = enemyStartPosX + (enemyWidth + enemyGap) * i;
+          var y = enemyStartPosY + (enemyHeight + enemyGap) * j;
+          enemyPos.push([x, y])
+        }
+      }
+    }
+    function draw() {
+      score = new Text(15, 20, '16px Arial', '#f44280', "Score: " + scoreNum);
+      lives = new Text(canvas.width - 70, 20, '16px Arial', '#f44280', "Lives: " + livesNum);
+      salver = new Salver(salverX, salverY, salverWidth, salverHeight);
+      ball = new Ball(ballPosX, ballPosY);
+      ball.draw();
+      score.draw();
+      lives.draw();
+      salver.draw();
+      enemyPos.forEach(item => {
+        enemy = new Enemy(item[0], item[1], enemyWidth, enemyHeight);
+        enemy.draw();
+      });
+    }
+    createEnemyPos();
+    draw();
+    function play() {
+      collision();
+      if (ballPosX > canvas.width - ballRadius || ballPosX < ballRadius) {
+        dx = -dx;
+      }
+      if (ballPosY < ballRadius) {
+        dy = -dy;
+      }
+      if (ballPosY > canvas.height - ballRadius - salverHeight) {
+        if (ballPosX > salverX && ballPosX < salverX + salverWidth) {
+          dy = -dy;
+        } else {
+          livesNum--;
+          lives = new Text(canvas.width - 70, 20, '16px Arial', '#f44280', "Lives: " + livesNum);
+          ctx.clearRect(canvas.width - 70, 0, canvas.width, 20);
+          lives.draw();
+          if (livesNum === 0) {
+            gameOver();
+            return;
+          }
+          ballPosX = canvas.width / 2;
+          ballPosY = canvas.height - salverHeight - ballRadius;
+          salverX = (canvas.width - salverWidth) / 2;
+          salverY = canvas.height - salverHeight;
+        }
+      }
+      if (leftPressed && salverX > 0) {
+        salverX -= 5;
+      } else if (rightPressed && salverX < canvas.width - salverWidth) {
+        salverX += 5;
+      }
+      ballPosX += dx;
+      ballPosY += dy;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      draw();
+      if (scoreNum === enemyRows * enemyColumns) {
+        win();
+        return;
+      }
+
+      stop = requestAnimationFrame(play)
+    }
+    function gameOver() {
+      result = new Text(150, 200, '30px Arial', '#f44280', 'GAME OVER');
+      result.draw();
+      cancelAnimationFrame(stop);
+    }
+    function win() {
+      result = new Text(200, 200, '30px Arial', '#f44280', 'WIN');
+      result.draw();
+      cancelAnimationFrame(stop);
+    }
+    function collision() {
+      for (let i = 0; i < enemyPos.length; i++) {
+        if (
+          ballPosX + dx >= enemyPos[i][0] - ballRadius &&
+          ballPosY + dy <= enemyPos[i][1] + ballRadius + enemyHeight &&
+          ballPosX + dx <= enemyPos[i][0] + ballRadius + enemyWidth &&
+          ballPosY + dy >= enemyPos[i][1] - ballRadius
+        ) {
+          if (ballPosY < enemyPos[i][1] - ballRadius || ballPosY > enemyPos[i][1] + ballRadius + enemyHeight) {
+            dy = -dy;
+          } else {
+            dx = -dx
+          }
+          scoreNum++;
+          enemyPos.splice(i, 1);
+          break;
+        }
+      }
+      // enemyPos.forEach((item, index) => {
+      //   if (
+      //     ballPosX >= item[0] - ballRadius &&
+      //     ballPosY <= item[1] + ballRadius + enemyHeight &&
+      //     ballPosX <= item[0] + ballRadius + enemyWidth &&
+      //     ballPosY >= item[1] - ballRadius
+      //   ) {
+      //     // if(ballPosX < item[0] -ballRadius)
+      //     console.log(1)
+      //     dy = -dy;
+      //     scoreNum++;
+      //     enemyPos.splice(index, 1);
+      //     return;
+      //   }
+      // })
+    }
+    start.addEventListener('click', function () {
+      if (isPlay) {
+        return
+      }
+      isPlay = true;
+      document.addEventListener('keydown', function (e) {
+        if (e.keyCode === 39) {
+          rightPressed = true;
+        } else if (e.keyCode === 37) {
+          leftPressed = true;
+        }
+      })
+      document.addEventListener('keyup', function (e) {
+        if (e.keyCode === 39) {
+          rightPressed = false;
+        } else if (e.keyCode === 37) {
+          leftPressed = false;
+        }
+      })
+      play();
+    })
+    pause.addEventListener('click', function () {
+      if (isPlay) {
+        isPlay = !isPlay;
+        pause.innerHTML = '继续';
+        cancelAnimationFrame(stop);
+      } else {
+        isPlay = !isPlay;
+        pause.innerHTML = '暂停';
+        stop = requestAnimationFrame(play)
+      }
+    })
+    replay.addEventListener('click', function () {
+      document.location.reload();
+    })
+  </script>
+</body>
+
+</html>
